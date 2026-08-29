@@ -1,1 +1,53 @@
+title: Suspicious npm postinstall Script Execution (Supply Chain Attack)
+id: 71f8155e-391d-4f6c-9951-797875fbcc36
+status: experimental
 
+description: |
+  Detects suspicious process execution triggered by npm postinstall hooks,
+  as observed in the UNC1069 / North Korean Axios npm supply chain attack (March 2026).
+  Threat actors injected a malicious postinstall hook in a phantom dependency
+  (plain-crypto-js) to silently execute a dropper and deploy malware.
+
+references:
+  - https://cloud.google.com/blog/topics/threat-intelligence/north-korea-threat-actor-targets-axios-npm-package
+  - https://thehackernews.com/2026/04/google-attributes-axios-npm-supply.html
+
+author: Athullya Tomy
+date: 2026-06-08
+
+tags:
+  - attack.execution
+  - attack.t1195.001
+  - attack.t1059.007
+  - attack.t1543
+
+logsource:
+  category: process_creation
+  product: windows
+
+detection:
+  selection:
+    ParentImage|endswith:
+      - '\node.exe'
+      - '\npm.cmd'
+      - '\npx.cmd'
+    CommandLine|contains:
+      - 'setup.js'
+      - 'postinstall'
+      - 'plain-crypto-js'
+
+  suspicious_child:
+    Image|endswith:
+      - '\powershell.exe'
+      - '\cmd.exe'
+      - '\wscript.exe'
+      - '\curl.exe'
+      - '\certutil.exe'
+
+  condition: selection and suspicious_child
+
+falsepositives:
+  - Legitimate build tools running postinstall scripts
+  - Developer machines running custom npm hooks
+
+level: high
