@@ -1,1 +1,105 @@
-
+title: Suspicious Encoded Command or Scripting Interpreter Execution
+id: 6b836d8f-cb2e-4d5b-9986-a9ec9be353c7
+status: experimental
+description: |
+    Detects Windows PowerShell or Command Prompt execution where the command
+    line contains encoded-command switches or references to Base64. Adversaries
+    may use encoded commands to obscure scripts, commands, or binary content
+    executed through command and scripting interpreters.
+references:
+    - https://attack.mitre.org/techniques/T1059/
+    - https://attack.mitre.org/techniques/T1059/001/
+    - https://attack.mitre.org/techniques/T1059/003/
+author: Athullya Tomy
+date: 2026-08-29
+tags:
+    - attack.execution
+    - attack.t1059
+    - attack.t1059.001
+    - attack.t1059.003
+    - attack.defense-evasion
+    - attack.t1027
+logsource:
+    category: process_creation
+    product: windows
+detection:
+    selection_powershell_image:
+        Image|endswith:
+            - '\powershell.exe'
+            - '\pwsh.exe'
+            - '\powershell_ise.exe'
+        CommandLine|contains:
+            - ' -e '
+            - ' -en '
+            - ' -ec '
+            - ' -enc '
+            - ' -enco '
+            - ' -encodedcommand '
+            - ' -encodedCommand '
+            - ' -EncodedCommand '
+            - 'base64'
+            - 'Base64'
+            - 'BASE64'
+    selection_cmd_image:
+        Image|endswith:
+            - '\cmd.exe'
+        CommandLine|contains:
+            - 'base64'
+            - 'Base64'
+            - 'BASE64'
+    filter_main_system_wmi:
+        User:
+            - 'SYSTEM'
+            - 'NT AUTHORITY\SYSTEM'
+        UserSid: 'S-1-5-18'
+        Image|endswith:
+            - '\powershell.exe'
+            - '\pwsh.exe'
+        ParentImage|endswith:
+            - '\WmiPrvSE.exe'
+            - '\cmd.exe'
+            - '\powershell.exe'
+            - '\pwsh.exe'
+    filter_optional_edr_agent:
+        CommandLine|contains: '\Microsoft\Windows Defender Advanced Threat Protection\'
+        Image|endswith: '\SenseIR.exe'
+    filter_optional_vuln_scanner:
+        Image|endswith:
+            - '\powershell.exe'
+            - '\pwsh.exe'
+        CommandLine|contains:
+            - 'nessus'
+            - 'Nessus'
+    filter_optional_cloud_agent:
+        Image|endswith:
+            - '\powershell.exe'
+            - '\pwsh.exe'
+        ParentImage|contains|all:
+            - '\AzureConnectedMachineAgent\'
+            - 'GC\gc_worker.exe'
+    filter_optional_ide_terminal:
+        Image|endswith:
+            - '\powershell.exe'
+            - '\pwsh.exe'
+        ParentImage|contains: '\Microsoft VS Code\Code.exe'
+    filter_optional_dev_localhost:
+        Image|endswith:
+            - '\powershell.exe'
+            - '\pwsh.exe'
+        ParentImage|endswith:
+            - '\node.exe'
+            - '\wsl.exe'
+        CommandLine|contains:
+            - 'http://localhost'
+            - 'https://localhost'
+    condition: 1 of selection_* and not 1 of filter_*
+falsepositives:
+    - Authorized administrative PowerShell automation
+    - Endpoint-management and software-deployment scripts
+    - Vulnerability-scanning activity
+    - Configuration-management activity
+    - Encoded PowerShell used by approved enterprise applications
+    - Developers testing Base64 encoding or decoding
+    - Commands where Base64 is data rather than encoded executable content
+    - Environment-specific automation, health-check scripts, and service accounts (customize the filter_* blocks for your environment)
+level: medium
